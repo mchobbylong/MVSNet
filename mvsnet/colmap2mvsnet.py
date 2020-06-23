@@ -282,6 +282,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert colmap camera')
 
     parser.add_argument('--dense_folder', type=str, help='Project dir.')
+    parser.add_argument('--output_folder', type=str, help='Outputted MVSNet dataset dir.')
+    parser.add_argument('--sparse_data_type', type=str, help='Data type in the "sparse" folder.', default='bin')
 
     parser.add_argument('--max_d', type=int, default=0)
     parser.add_argument('--interval_scale', type=float, default=1)
@@ -296,11 +298,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     image_dir = os.path.join(args.dense_folder, 'images')
-    model_dir = os.path.join(args.dense_folder, 'sparse')
-    cam_dir = os.path.join(args.dense_folder, 'cams')
-    renamed_dir = os.path.join(args.dense_folder, 'images')
+    model_dir = os.path.join(args.dense_folder, 'sparse_txt' if args.sparse_data_type == 'txt' else 'sparse')
+    cam_dir = os.path.join(args.output_folder, 'cams')
+    renamed_dir = os.path.join(args.output_folder, 'images')
 
-    cameras, images, points3d = read_model(model_dir, '.txt')
+    cameras, images, points3d = read_model(model_dir, '.' + args.sparse_data_type)
     num_images = len(list(images.items()))
 
     param_type = {
@@ -424,13 +426,16 @@ if __name__ == '__main__':
                     f.write(str(intrinsic[images[i+1].camera_id][j, k]) + ' ')
                 f.write('\n')
             f.write('\n%f %f %f %f\n' % (depth_ranges[i+1][0], depth_ranges[i+1][1], depth_ranges[i+1][2], depth_ranges[i+1][3]))
-    with open(os.path.join(args.dense_folder, 'pair.txt'), 'w') as f:
+    with open(os.path.join(args.output_folder, 'pair.txt'), 'w') as f:
         f.write('%d\n' % len(images))
         for i, sorted_score in enumerate(view_sel):
             f.write('%d\n%d ' % (i, len(sorted_score)))
             for image_id, s in sorted_score:
                 f.write('%d %f ' % (image_id, s))
             f.write('\n')
+
+    if not os.path.exists(renamed_dir):
+        os.makedirs(renamed_dir)
     for i in range(num_images):
         if args.convert_format:
             img = cv2.imread(os.path.join(image_dir, images[i+1].name))
